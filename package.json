@@ -1,0 +1,36 @@
+{
+  "name": "webmind-root",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/llms",
+    "packages/page-controller",
+    "packages/core",
+    "packages/ui",
+    "packages/webmind",
+    "packages/extension"
+  ],
+  "scripts": {
+    "build": "npm run build:libs",
+    "build:libs": "npm run build --workspace=packages/llms && npm run build --workspace=packages/page-controller && npm run build --workspace=packages/core && npm run build --workspace=packages/ui && npm run build --workspace=packages/webmind",
+    "dev:ext": "npm run dev --workspace=packages/extension",
+    "build:ext": "npm run build --workspace=packages/extension",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "test": "jest"
+  },
+  "prettier": {
+    "singleQuote": true,
+    "semi": false,
+    "useTabs": true,
+    "trailingComma": "all",
+    "printWidth": 100
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  }
+}

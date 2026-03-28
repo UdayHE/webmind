@@ -1,0 +1,26 @@
+{
+  "name": "@webmind/extension",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt dev",
+    "build": "wxt build",
+    "build:ext": "wxt build",
+    "zip": "wxt zip"
+  },
+  "dependencies": {
+    "@webmind/core": "*",
+    "@webmind/llms": "*",
+    "@webmind/page-controller": "*",
+    "@webmind/ui": "*",
+    "idb": "^8.0.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "wxt": "^0.19.0",
+    "typescript": "^5.0.0",
+    "@types/chrome": "^0.0.270",
+    "@types/node": "^22.0.0"
+  }
+}
