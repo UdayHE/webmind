@@ -97,7 +97,7 @@ jobs:
         run: pip install uv
 
       - name: Install dependencies
-        run: uv sync --dev
+        run: uv sync --extra dev
 
       - name: Type-check (pyright)
         run: uv run pyright webmind_mcp/ || true
