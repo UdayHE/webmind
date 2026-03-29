@@ -1,6 +1,6 @@
 # WebMind
 
-An AI-powered in-page browser agent that controls web interfaces via natural language — a TypeScript + Python implementation inspired by [alibaba/page-agent](https://github.com/alibaba/page-agent).
+An AI-powered in-page browser agent that controls web interfaces via natural language — a TypeScript + Python implementation.
 
 ## Overview
 
