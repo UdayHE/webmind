@@ -22,13 +22,16 @@ export interface TextDomNode extends BaseDomNode {
 	type: 'text'
 }
 
-export interface ElementDomNode extends BaseDomNode {
-	type: 'element'
+interface BaseElementDomNode extends BaseDomNode {
 	attributes: Record<string, string>
 	children: DomNode[]
 }
 
-export interface InteractiveElementDomNode extends ElementDomNode {
+export interface ElementDomNode extends BaseElementDomNode {
+	type: 'element'
+}
+
+export interface InteractiveElementDomNode extends BaseElementDomNode {
 	type: 'interactive'
 	role: string | null
 	placeholder: string | null

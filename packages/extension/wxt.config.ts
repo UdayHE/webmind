@@ -13,6 +13,7 @@ export default defineConfig({
 			'storage',
 			'sidePanel',
 			'scripting',
+			'debugger',
 		],
 		host_permissions: ['<all_urls>'],
 		icons: {

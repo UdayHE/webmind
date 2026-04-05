@@ -12,7 +12,15 @@
 import { WebMindCore } from '@webmind/core'
 import type { AgentConfig, ExecutionResult } from '@webmind/core'
 import type { ExecuteTaskMessage, StopTaskMessage } from '../types/messages.js'
-import { validateToken, storeToken } from '../lib/auth.js'
+import { storeToken } from '../lib/auth.js'
+
+export default defineContentScript({
+	matches: ['<all_urls>'],
+	runAt: 'document_idle',
+	main() {
+		init()
+	},
+})
 
 let activeAgent: WebMindCore | null = null
 
@@ -24,39 +32,41 @@ function isStopMsg(msg: unknown): msg is StopTaskMessage {
 	return typeof msg === 'object' && msg !== null && (msg as Record<string, unknown>).type === 'STOP_TASK'
 }
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-	if (isExecuteMsg(msg)) {
-		// Store and validate auth token
-		storeToken(msg.authToken)
+function init(): void {
+	chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+		if (isExecuteMsg(msg)) {
+			// Store and validate auth token
+			storeToken(msg.authToken)
 
-		void handleExecute(msg, sendResponse)
-		return true // Keep channel open for async response
-	}
-
-	if (isStopMsg(msg)) {
-		activeAgent?.stop()
-		sendResponse({ ok: true })
-		return false
-	}
-
-	if (msg.type === 'PAGE_CONTROL') {
-		// Forward to main world via custom event
-		document.dispatchEvent(
-			new CustomEvent('webmind_page_control', {
-				detail: msg.action,
-			}),
-		)
-		// The main-world script will respond via webmind_page_control_result
-		const handler = (e: Event) => {
-			document.removeEventListener('webmind_page_control_result', handler)
-			sendResponse((e as CustomEvent).detail)
+			void handleExecute(msg, sendResponse)
+			return true // Keep channel open for async response
 		}
-		document.addEventListener('webmind_page_control_result', handler, { once: true })
-		return true
-	}
 
-	return false
-})
+		if (isStopMsg(msg)) {
+			activeAgent?.stop()
+			sendResponse({ ok: true })
+			return false
+		}
+
+		if (msg.type === 'PAGE_CONTROL') {
+			// Forward to main world via custom event
+			document.dispatchEvent(
+				new CustomEvent('webmind_page_control', {
+					detail: msg.action,
+				}),
+			)
+			// The main-world script will respond via webmind_page_control_result
+			const handler = (e: Event) => {
+				document.removeEventListener('webmind_page_control_result', handler)
+				sendResponse((e as CustomEvent).detail)
+			}
+			document.addEventListener('webmind_page_control_result', handler, { once: true })
+			return true
+		}
+
+		return false
+	})
+}
 
 async function handleExecute(
 	msg: ExecuteTaskMessage,
@@ -80,17 +90,17 @@ async function handleExecute(
 
 	// Forward events to background
 	agent.addEventListener('statuschange', (e) => {
-		const detail = (e as CustomEvent).detail
+		const detail = (e as CustomEvent<{ status: string }>).detail
 		chrome.runtime.sendMessage({ type: 'TASK_STATUS', taskId: msg.taskId, ...detail })
 	})
 
 	agent.addEventListener('activity', (e) => {
-		const detail = (e as CustomEvent).detail
+		const detail = (e as CustomEvent<{ activity: unknown }>).detail
 		chrome.runtime.sendMessage({ type: 'TASK_ACTIVITY', taskId: msg.taskId, ...detail })
 	})
 
 	agent.addEventListener('historychange', (e) => {
-		const detail = (e as CustomEvent).detail
+		const detail = (e as CustomEvent<{ history: unknown[] }>).detail
 		chrome.runtime.sendMessage({ type: 'TASK_HISTORY', taskId: msg.taskId, ...detail })
 	})
 

@@ -1,5 +1,6 @@
 import type { AgentStatus, ExecutionResult, HistoricalEvent } from '@webmind/core'
 import type { AgentConfig } from '@webmind/core'
+import type { BrowserSignals } from '../signals/index.js'
 
 export type MessageTarget = 'background' | 'content' | 'sidepanel'
 
@@ -94,6 +95,17 @@ export interface AskUserMessage {
 export interface UserAnswerMessage {
 	type: 'USER_ANSWER'
 	answer: string
+}
+
+// Signal Bus messages — agent queries background for captured CDP signals
+export interface GetSignalsMessage {
+	type: 'GET_SIGNALS'
+	tabId: number
+}
+
+export interface SignalsResultMessage {
+	type: 'SIGNALS_RESULT'
+	signals: BrowserSignals
 }
 
 export type BackgroundMessage =

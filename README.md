@@ -1,6 +1,6 @@
 # WebMind
 
-An AI-powered in-page browser agent that controls web interfaces via natural language — a TypeScript + Python implementation.
+An AI-powered browser agent that controls web interfaces via natural language — TypeScript + Python implementation.
 
 ## Overview
 
@@ -8,12 +8,14 @@ WebMind lets you (or an AI assistant) control any webpage using plain English. I
 
 ```
 "Find the cheapest flight to Tokyo next week and add it to the cart"
+"Why is the login button not working? Check the network calls."
 ```
 
 ## Features
 
 - **ReAct agent loop** — Observe → Think → Act, up to 40 steps by default
 - **Full DOM awareness** — numbers every interactive element, builds a flat DOM tree for the LLM
+- **Network observability** — captures HTTP, WebSocket, and console signals via Chrome DevTools Protocol; agent can reason over API calls alongside the UI
 - **Floating panel UI** — draggable in-page control panel with live step log and history
 - **Chrome extension** — multi-tab agent with side panel, IndexedDB history, token-based auth
 - **MCP server** — control the browser from Claude Desktop, Cursor, or any MCP client
@@ -28,13 +30,14 @@ WebMind lets you (or an AI assistant) control any webpage using plain English. I
 ```
 webmind/
 ├── packages/
-│   ├── llms/            # @webmind/llms       — LLM clients + tool-use
-│   ├── page-controller/ # @webmind/page-controller — DOM inspection + actions
-│   ├── core/            # @webmind/core        — headless ReAct agent loop
-│   ├── ui/              # @webmind/ui          — floating panel + i18n
-│   ├── webmind/         # webmind              — main entry (core + UI)
-│   └── extension/       # @webmind/extension   — Chrome extension (WXT)
-└── mcp-server/          # webmind-mcp          — Python MCP server
+│   ├── llms/            # @webmind/llms            — LLM clients + tool-use
+│   ├── page-controller/ # @webmind/page-controller  — DOM inspection + actions
+│   ├── core/            # @webmind/core             — headless ReAct agent loop
+│   ├── ui/              # @webmind/ui               — floating panel + i18n
+│   ├── webmind/         # webmind                   — main entry (core + UI)
+│   └── extension/       # @webmind/extension        — Chrome extension (WXT)
+│       └── src/signals/ #   └─ Signal Bus (CDP capture)
+└── mcp-server/          # webmind-mcp               — Python MCP server
 ```
 
 **Data flow (extension + MCP mode):**
@@ -45,11 +48,15 @@ MCP Client (Claude / Cursor)
     ▼
 Python MCP Server  ──WS──►  Background Service Worker
                                       │
-                              Chrome Message Passing
-                                      │
-                              Content Script (page)
-                                      │
-                              main-world.ts → PageController → DOM
+                              ┌───────┴────────┐
+                              │                │
+                       Chrome Messages    chrome.debugger
+                              │           (CDP capture)
+                              │                │
+                       Content Script    Signal Bus
+                              │         (per-tab ring buffer)
+                              │
+                       main-world.ts → PageController → DOM
 ```
 
 ---
@@ -115,7 +122,7 @@ https://example.com?wm_model=gpt-4o&wm_base_url=https://api.openai.com/v1&wm_api
 
 ### Mode 2 — Chrome Extension
 
-Full multi-tab agent with a side panel UI, history, and settings.
+Full multi-tab agent with a side panel UI, history, settings, and network observability.
 
 **Build:**
 ```bash
@@ -140,6 +147,8 @@ npm run dev:ext
 
 **Run a task:**
 - Type in the side panel text area → **Start**
+
+> **Note:** When a task runs, Chrome will show a "WebMind is debugging this browser" bar. This is expected — it means the CDP network capture is active. The debugger detaches automatically when the task completes.
 
 ---
 
@@ -253,6 +262,54 @@ agent.stop()
 
 ---
 
+## Agent Tools
+
+### DOM Interaction
+
+| Tool | Description |
+|---|---|
+| `click_element_by_index` | Click an interactive element by its numbered index |
+| `input_text` | Type text into an input or contentEditable element |
+| `select_dropdown_option` | Select an option from a dropdown (native + Ant Design) |
+| `scroll` | Scroll the page or a specific element up/down |
+| `scroll_horizontally` | Scroll left/right |
+| `execute_javascript` | Run arbitrary JavaScript on the page |
+| `wait` | Pause for 1–10 seconds |
+| `ask_user` | Pause and ask the user a question |
+| `done` | Mark the task as complete with a summary |
+
+### Multi-tab (Extension only)
+
+| Tool | Description |
+|---|---|
+| `open_tab` | Open a URL in a new tab |
+| `close_tab` | Close a tab by ID |
+| `switch_tab` | Switch focus to a different tab |
+| `get_tabs` | List all open tabs |
+
+### Network Observability (Extension only)
+
+Captured via `chrome.debugger` CDP during active tasks. The agent can use these tools to reason about API calls, diagnose errors, and understand what the page is doing behind the scenes.
+
+| Tool | Parameters | Description |
+|---|---|---|
+| `get_network_logs` | `url_filter?`, `method?`, `status?`, `limit?` | HTTP/HTTPS requests — URL, method, status, request/response bodies |
+| `get_ws_messages` | `url_filter?`, `direction?`, `limit?` | WebSocket frames — payload, direction (send/receive) |
+| `get_console_logs` | `level?`, `limit?` | Console output and JavaScript exceptions |
+
+**Example — agent diagnosing a login failure:**
+```
+Agent step 1: Check DOM → sees "Invalid credentials" error message
+Agent step 2: get_network_logs({ url_filter: "/api/auth", status: 401 })
+              → POST /api/auth/login → 401 {"error": "user_not_found"}
+Agent step 3: Concludes → the email address entered doesn't exist in the system
+```
+
+> Captured signals are stored in a per-tab ring buffer (last 200 events per type).
+> Sensitive headers (`Authorization`, `Cookie`) are automatically masked.
+
+---
+
 ## Development
 
 ```bash
@@ -276,24 +333,6 @@ uv run pytest tests/ -v
 npm install -D sharp --workspace=packages/extension
 node packages/extension/scripts/gen-icons.mjs
 ```
-
----
-
-## Agent Tools
-
-The agent has access to these browser actions:
-
-| Tool | Description |
-|---|---|
-| `click_element_by_index` | Click an interactive element by its numbered index |
-| `input_text` | Type text into an input or contentEditable element |
-| `select_dropdown_option` | Select an option from a dropdown (native + Ant Design) |
-| `scroll` | Scroll the page or a specific element up/down |
-| `scroll_horizontally` | Scroll left/right |
-| `execute_javascript` | Run arbitrary JavaScript on the page |
-| `wait` | Pause for 1–10 seconds |
-| `ask_user` | Pause and ask the user a question |
-| `done` | Mark the task as complete with a summary |
 
 ---
 

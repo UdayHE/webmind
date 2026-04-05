@@ -12,9 +12,10 @@
 import { PageController } from '@webmind/page-controller'
 import type { RemoteAction } from '../agent/RemotePageController.js'
 
-const controller = new PageController()
+export default defineUnlistedScript(() => {
+	const controller = new PageController()
 
-document.addEventListener('webmind_page_control', async (e: Event) => {
+	document.addEventListener('webmind_page_control', async (e: Event) => {
 	const action = (e as CustomEvent<RemoteAction>).detail
 	let result: { success: boolean; data?: unknown; error?: string }
 
@@ -99,4 +100,5 @@ document.addEventListener('webmind_page_control', async (e: Event) => {
 	)
 })
 
-console.log('[WebMind] Main world script loaded')
+	console.log('[WebMind] Main world script loaded')
+})

@@ -1,7 +1,7 @@
 import { LLM, validateAction } from '@webmind/llms'
 import type { LLMMessage, ToolCall } from '@webmind/llms'
 import { PageController } from '@webmind/page-controller'
-import { AGENT_TOOLS, TOOL_NAMES } from './tools/index.js'
+import { AGENT_TOOLS } from './tools/index.js'
 import type {
 	AgentActivity,
 	AgentConfig,
@@ -103,6 +103,7 @@ export class WebMindCore extends EventTarget {
 		const maxSteps = this.config.maxSteps ?? 40
 		const stepDelay = this.config.stepDelay ?? 400
 		const tools = [...AGENT_TOOLS, ...(this.config.customTools ?? [])]
+			const allToolNames = tools.map((t) => t.name)
 
 		await this.config.onBeforeTask?.(task)
 
@@ -179,7 +180,7 @@ export class WebMindCore extends EventTarget {
 				let result: ExecutionResult = { success: false, data: 'No action taken', history: this._history, steps: step + 1 }
 
 				for (const toolCall of response.toolCalls) {
-					const validated = validateAction(toolCall, TOOL_NAMES)
+					const validated = validateAction(toolCall, allToolNames)
 					if (!validated) {
 						console.warn(`[WebMind] Unknown tool: ${toolCall.name}`)
 						continue
